@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nexus AI - Teams Control Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            color: #1d1d1f;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        
+        svg:active {
+            cursor: grabbing;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .node:hover {
+            filter: brightness(1.1) drop-shadow(0 8px 25px rgba(0,0,0,0.15));
+        }
+        
+        .node-label {
+            font-size: 11px;
+            font-weight: 500;
+            pointer-events: none;
+            fill: #1d1d1f;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            padding: 24px;
+            max-width: 320px;
+            z-index: 1000;
+        }
+        
+        .info-panel h2 {
+            margin: 0 0 8px 0;
+            color: #1d1d1f;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .info-panel .subtitle {
+            color: #6e6e73;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        
+        .info-panel p {
+            margin: 8px 0;
+            font-size: 14px;
+            color: #1d1d1f;
+            line-height: 1.5;
+            font-weight: 400;
+        }
+        
+        .tab-navigation {
+            position: absolute;
+            top: 420px;
+            left: 24px;
+            display: flex;
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 1000;
+        }
+        
+        .tab-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: #1d1d1f;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tab-btn:last-child {
+            border-right: none;
+        }
+        
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            color: #007AFF;
+            font-weight: 600;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 32px;
+            right: 32px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+        
+        .control-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 22px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: 500;
+            color: #1d1d1f;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+        
+        .legend {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            padding: 20px;
+            max-width: 280px;
+            z-index: 1000;
+        }
+        
+        .legend h3 {
+            margin: 0 0 16px 0;
+            font-size: 17px;
+            color: #1d1d1f;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0;
+            font-size: 14px;
+            color: #1d1d1f;
+            font-weight: 400;
+        }
+        
+        .legend-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .filter-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .filter-btn {
+            display: block;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: #1d1d1f;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin: 8px 0;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: left;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .filter-btn.active {
+            background: #007AFF;
+            color: white;
+            border-color: #007AFF;
+        }
+        
+        .detail-panel {
+            position: absolute;
+            bottom: 32px;
+            left: 24px;
+            padding: 24px;
+            max-width: 400px;
+            display: none;
+            z-index: 1000;
+            animation: slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .detail-panel.active {
+            display: block;
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .detail-panel h3 {
+            margin: 0 0 16px 0;
+            color: #1d1d1f;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+        }
+        
+        .detail-row {
+            margin: 12px 0;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #6e6e73;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
+        }
+        
+        .detail-value {
+            color: #1d1d1f;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(142, 142, 147, 0.12);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 15px;
+            font-size: 16px;
+            cursor: pointer;
+            color: #6e6e73;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .close-btn:hover {
+            background: rgba(142, 142, 147, 0.2);
+            color: #1d1d1f;
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 24px;
+            z-index: 9999;
+            color: #1d1d1f;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top-color: #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 17px;
+            color: #1d1d1f;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Teams Control Center...</div>
+    </div>
+    
+    <div id="container">
+        <svg id="village"></svg>
+        
+        <div class="info-panel glass-panel">
+            <h2>🚀 Nexus AI</h2>
+            <div class="subtitle">Teams Control Center</div>
+            <p><strong><span id="team-count">18 Teams</span></strong> • <span id="mode-indicator">Organizational View</span></p>
+            <p style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 13px; color: #6e6e73;">
+                Zoom with scroll • Pan by dragging • Click for details
+            </p>
+        </div>
+        
+        <div class="tab-navigation">
+            <div class="tab-btn active" onclick="showMapView()">🗺️ Organizational View</div>
+            <div class="tab-btn" onclick="showProblemAnalysis()">⚠️ Risk Analysis</div>
+        </div>
+        
+        <div class="legend glass-panel">
+            <h3 id="legend-title">Departments</h3>
+            <div id="normal-legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: linear-gradient(135deg, #FF6B6B, #FF5252);"></div>
+                    <span>AI/ML Engineering (6)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: linear-gradient(135deg, #4ECDC4, #26C6DA);"></div>
+                    <span>Product & Design (4)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: linear-gradient(135deg, #45B7D1, #2196F3);"></div>
+                    <span>Engineering (5)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: linear-gradient(135deg, #96CEB4, #4CAF50);"></div>
+                    <span>Operations (3)</span>
+                </div>
+            </div>
+            
+            <div id="problem-legend" style="display: none;">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF3B30;"></div>
+                    <span>Ownership Risk (4)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF9500;"></div>
+                    <span>Security Risk (3)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #AF52DE;"></div>
+                    <span>Inactive Teams (2)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF2D92;"></div>
+                    <span>Data Governance (2)</span>
+                </div>
+            </div>
+            
+            <div id="filter-section" class="filter-section">
+                <div class="filter-btn" onclick="applyGovernanceFilter()">⚠️ Governance Issues</div>
+                <div class="filter-btn" onclick="applySizeFilter()">📊 Large Teams (10+)</div>
+                <div class="filter-btn" onclick="applyOwnershipFilter()">👤 Single Owner Risk</div>
+                <div class="filter-btn" onclick="applyGuestFilter()">🌐 External Collaborators</div>
+                <div class="filter-btn" onclick="resetFilters()" style="margin-top: 12px; color: #007AFF;">🔄 Reset View</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="zoomIn()">+</button>
+            <button class="control-btn" onclick="zoomOut()">−</button>
+            <button class="control-btn" onclick="resetZoom()">⌂</button>
+        </div>
+        
+        <div class="detail-panel glass-panel" id="detailPanel">
+            <button class="close-btn" onclick="closeDetails()">×</button>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+    
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <script>
+        // Modern gradient colors
+        const colors = {
+            aiml: 'url(#aiml-gradient)',
+            product: 'url(#product-gradient)', 
+            engineering: 'url(#engineering-gradient)',
+            operations: 'url(#operations-gradient)'
+        };
+        
+        // Problem analysis colors
+        const problemColors = {
+            'ownership-risk': '#FF3B30',
+            'security-risk': '#FF9500',
+            'inactive-teams': '#AF52DE',
+            'data-governance': '#FF2D92'
+        };
+        
+        // Nexus AI 2025 Teams Data
+        const teams = [
+            // AI/ML Engineering
+            {id: 1, name: "AI Research", cluster: "aiml", members: 12, owner: "Dr. Sarah Chen", issues: null, problemType: null},
+            {id: 2, name: "MLOps Platform", cluster: "aiml", members: 8, owner: "Marcus Rodriguez", issues: "Single owner", problemType: "ownership-risk"},
+            {id: 3, name: "AI Ethics & Safety", cluster: "aiml", members: 4, owner: "Dr. Aisha Patel", issues: null, problemType: null},
+            {id: 4, name: "Computer Vision", cluster: "aiml", members: 9, owner: "Alex Kim", issues: "External researchers", problemType: "security-risk"},
+            {id: 5, name: "NLP Research", cluster: "aiml", members: 7, owner: "Dr. Maria Santos", issues: null, problemType: null},
+            {id: 6, name: "AutoML Project", cluster: "aiml", members: 2, owner: "Previous employee", issues: "Orphaned team", problemType: "inactive-teams"},
+            
+            // Product & Design
+            {id: 7, name: "Product Strategy", cluster: "product", members: 6, owner: "Jessica Wu", issues: null, problemType: null},
+            {id: 8, name: "UX Research", cluster: "product", members: 5, owner: "Tom Anderson", issues: "Customer data in general channel", problemType: "data-governance"},
+            {id: 9, name: "Design System", cluster: "product", members: 4, owner: "Elena Vasquez", issues: null, problemType: null},
+            {id: 10, name: "Growth Analytics", cluster: "product", members: 8, owner: "David Park", issues: "External consultants", problemType: "security-risk"},
+            
+            // Engineering
+            {id: 11, name: "Platform Engineering", cluster: "engineering", members: 15, owner: "James Liu", issues: null, problemType: null},
+            {id: 12, name: "API Development", cluster: "engineering", members: 7, owner: "Sophia Andersson", issues: "Single owner", problemType: "ownership-risk"},
+            {id: 13, name: "Infrastructure", cluster: "engineering", members: 9, owner: "Carlos Mendez", issues: null, problemType: null},
+            {id: 14, name: "Security Team", cluster: "engineering", members: 4, owner: "Rachel Green", issues: null, problemType: null},
+            {id: 15, name: "Mobile Apps", cluster: "engineering", members: 6, owner: "Previous team lead", issues: "No active owner", problemType: "ownership-risk"},
+            
+            // Operations
+            {id: 16, name: "Sales Operations", cluster: "operations", members: 5, owner: "Michael Brown", issues: null, problemType: null},
+            {id: 17, name: "Customer Success", cluster: "operations", members: 11, owner: "Lisa Zhang", issues: "Client data exposure", problemType: "data-governance"},
+            {id: 18, name: "Finance & Legal", cluster: "operations", members: 3, owner: "Robert Taylor", issues: "Multiple external law firms", problemType: "security-risk"}
+        ];
+        
+        // Global variables
+        let nodes, labels, simulation, svg, g, defs;
+        let currentMode = 'normal';
+        
+        window.addEventListener('load', function() {
+            setTimeout(initVisualization, 1000);
+        });
+        
+        function initVisualization() {
+            document.getElementById('loadingScreen').classList.add('hidden');
+            
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            svg = d3.select("#village")
+                .attr("viewBox", [0, 0, width, height]);
+            
+            // Add gradients
+            defs = svg.append("defs");
+            
+            const gradients = [
+                {id: "aiml-gradient", colors: ["#FF6B6B", "#FF5252"]},
+                {id: "product-gradient", colors: ["#4ECDC4", "#26C6DA"]},
+                {id: "engineering-gradient", colors: ["#45B7D1", "#2196F3"]},
+                {id: "operations-gradient", colors: ["#96CEB4", "#4CAF50"]}
+            ];
+            
+            gradients.forEach(grad => {
+                const gradient = defs.append("linearGradient")
+                    .attr("id", grad.id)
+                    .attr("x1", "0%").attr("y1", "0%")
+                    .attr("x2", "100%").attr("y2", "100%");
+                
+                gradient.append("stop")
+                    .attr("offset", "0%")
+                    .attr("stop-color", grad.colors[0]);
+                
+                gradient.append("stop")
+                    .attr("offset", "100%")
+                    .attr("stop-color", grad.colors[1]);
+            });
+            
+            g = svg.append("g");
+            
+            // Zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.5, 3])
+                .on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            // Initialize with normal view as DEFAULT
+            currentMode = 'normal';
+            createNormalView();
+        }
+        
+        function createNormalView() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            // Clear existing elements
+            g.selectAll("*").remove();
+            
+            // Force simulation for normal view
+            simulation = d3.forceSimulation(teams)
+                .force("charge", d3.forceManyBody().strength(-1000))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.members * 2.5 + 10))
+                .force("x", d3.forceX(d => {
+                    const clusters = {
+                        aiml: width * 0.25,
+                        product: width * 0.75,
+                        engineering: width * 0.25,
+                        operations: width * 0.75
+                    };
+                    return clusters[d.cluster];
+                }).strength(0.3))
+                .force("y", d3.forceY(d => {
+                    const clusters = {
+                        aiml: height * 0.3,
+                        product: height * 0.3,
+                        engineering: height * 0.7,
+                        operations: height * 0.7
+                    };
+                    return clusters[d.cluster];
+                }).strength(0.3));
+            
+            // Draw nodes
+            nodes = g.selectAll("circle")
+                .data(teams)
+                .join("circle")
+                .attr("class", "node")
+                .attr("r", d => d.members * 2.5 + 8)
+                .attr("fill", d => colors[d.cluster])
+                .attr("stroke", "rgba(255, 255, 255, 0.3)")
+                .attr("stroke-width", 2)
+                .style("filter", "drop-shadow(0 4px 12px rgba(0,0,0,0.15))")
+                .on("click", showDetails)
+                .call(d3.drag()
+                    .on("start", dragStarted)
+                    .on("drag", dragged)
+                    .on("end", dragEnded));
+            
+            // Labels
+            labels = g.selectAll("text")
+                .data(teams)
+                .join("text")
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", d => d.members * 2.5 + 25)
+                .text(d => d.name);
+            
+            // Update positions
+            simulation.on("tick", () => {
+                nodes
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+                
+                labels
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+        }
+        
+        function createProblemAnalysisView() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            // Filter to only problem teams
+            const problemTeams = teams.filter(d => d.problemType !== null);
+            
+            // Clear existing elements
+            g.selectAll("*").remove();
+            
+            // Map problem types to cluster positions
+            const problemClusters = {
+                'ownership-risk': {x: width * 0.25, y: height * 0.3},
+                'security-risk': {x: width * 0.75, y: height * 0.3},
+                'inactive-teams': {x: width * 0.25, y: height * 0.7},
+                'data-governance': {x: width * 0.75, y: height * 0.7}
+            };
+            
+            // Force simulation for problem analysis
+            simulation = d3.forceSimulation(problemTeams)
+                .force("charge", d3.forceManyBody().strength(-800))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.members * 2.5 + 10))
+                .force("x", d3.forceX(d => problemClusters[d.problemType].x).strength(0.4))
+                .force("y", d3.forceY(d => problemClusters[d.problemType].y).strength(0.4));
+            
+            // Draw problem nodes
+            nodes = g.selectAll("circle")
+                .data(problemTeams)
+                .join("circle")
+                .attr("class", "node")
+                .attr("r", d => d.members * 2.5 + 8)
+                .attr("fill", d => problemColors[d.problemType])
+                .attr("stroke", "rgba(255, 255, 255, 0.4)")
+                .attr("stroke-width", 2)
+                .style("filter", "drop-shadow(0 6px 15px rgba(0,0,0,0.2))")
+                .on("click", showProblemDetails)
+                .call(d3.drag()
+                    .on("start", dragStarted)
+                    .on("drag", dragged)
+                    .on("end", dragEnded));
+            
+            // Problem labels (general, not specific team names)
+            labels = g.selectAll("text")
+                .data(problemTeams)
+                .join("text")
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", d => d.members * 2.5 + 25)
+                .text(d => {
+                    switch(d.problemType) {
+                        case 'ownership-risk': return 'Ownership Gap';
+                        case 'security-risk': return 'Security Risk';
+                        case 'inactive-teams': return 'Inactive Team';
+                        case 'data-governance': return 'Data Exposure';
+                        default: return 'Risk';
+                    }
+                });
+            
+            // Update positions
+            simulation.on("tick", () => {
+                nodes
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+                
+                labels
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+        }
+        
+        function showMapView() {
+            currentMode = 'normal';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update UI
+            document.getElementById('team-count').textContent = '18 Teams';
+            document.getElementById('mode-indicator').textContent = 'Organizational View';
+            document.getElementById('legend-title').textContent = 'Departments';
+            document.getElementById('normal-legend').style.display = 'block';
+            document.getElementById('problem-legend').style.display = 'none';
+            document.getElementById('filter-section').style.display = 'block';
+            
+            createNormalView();
+        }
+        
+        function showProblemAnalysis() {
+            currentMode = 'problem-analysis';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update UI
+            const problemCount = teams.filter(d => d.problemType !== null).length;
+            document.getElementById('team-count').textContent = `${problemCount} Risk Teams`;
+            document.getElementById('mode-indicator').textContent = 'Risk Analysis';
+            document.getElementById('legend-title').textContent = 'Risk Categories';
+            document.getElementById('normal-legend').style.display = 'none';
+            document.getElementById('problem-legend').style.display = 'block';
+            document.getElementById('filter-section').style.display = 'none';
+            
+            createProblemAnalysisView();
+        }
+        
+        function showDetails(event, d) {
+            const panel = document.getElementById("detailPanel");
+            const content = document.getElementById("detailContent");
+            
+            const clusterNames = {
+                aiml: 'AI/ML Engineering',
+                product: 'Product & Design',
+                engineering: 'Engineering',
+                operations: 'Operations'
+            };
+            
+            content.innerHTML = `
+                <h3>${d.name}</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Team Size</div>
+                    <div class="detail-value">${d.members} people</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Owner</div>
+                    <div class="detail-value">${d.owner}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Department</div>
+                    <div class="detail-value">${clusterNames[d.cluster]}</div>
+                </div>
+                ${d.issues ? `
+                <div class="detail-row">
+                    <div class="detail-label">Notes</div>
+                    <div class="detail-value" style="color: #FF9500;">${d.issues}</div>
+                </div>
+                ` : ''}
+            `;
+            
+            panel.classList.add("active");
+        }
+        
+        function showProblemDetails(event, d) {
+            const panel = document.getElementById("detailPanel");
+            const content = document.getElementById("detailContent");
+            
+            const riskDescriptions = {
+                'ownership-risk': 'Single points of failure in team ownership',
+                'security-risk': 'External collaborator access patterns',
+                'inactive-teams': 'Teams with minimal activity but retained data',
+                'data-governance': 'Sensitive information in unsecured channels'
+            };
+            
+            content.innerHTML = `
+                <h3>Risk Analysis</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Affected Team</div>
+                    <div class="detail-value">${d.name}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Risk Category</div>
+                    <div class="detail-value" style="color: ${problemColors[d.problemType]};">${d.problemType.replace('-', ' ').toUpperCase()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Description</div>
+                    <div class="detail-value">${riskDescriptions[d.problemType]}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Specific Issue</div>
+                    <div class="detail-value" style="color: #FF9500;">${d.issues}</div>
+                </div>
+            `;
+            
+            panel.classList.add("active");
+        }
+        
+        // Drag functions
+        function dragStarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragEnded(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        // Zoom controls
+        function zoomIn() {
+            svg.transition().duration(300).call(d3.zoom().scaleBy, 1.4);
+        }
+        
+        function zoomOut() {
+            svg.transition().duration(300).call(d3.zoom().scaleBy, 0.7);
+        }
+        
+        function resetZoom() {
+            svg.transition().duration(500).call(d3.zoom().transform, d3.zoomIdentity);
+        }
+        
+        function closeDetails() {
+            document.getElementById("detailPanel").classList.remove("active");
+        }
+        
+        // Filter Functions (only work in normal mode)
+        function applyGovernanceFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.issues !== null);
+        }
+        
+        function applySizeFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.members >= 10);
+        }
+        
+        function applyOwnershipFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.issues && d.issues.includes('owner'));
+        }
+        
+        function applyGuestFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.issues && (d.issues.includes('External') || d.issues.includes('consultants') || d.issues.includes('researchers')));
+        }
+        
+        function highlightTeams(filterCondition) {
+            nodes.style("opacity", d => filterCondition(d) ? 1.0 : 0.15)
+                 .style("filter", d => filterCondition(d) ? "drop-shadow(0 8px 20px rgba(0,123,255,0.3))" : "drop-shadow(0 4px 12px rgba(0,0,0,0.15))");
+            
+            labels.style("opacity", d => filterCondition(d) ? 1.0 : 0.3);
+        }
+        
+        function resetFilters() {
+            if (currentMode !== 'normal') return;
+            nodes.style("opacity", 1.0).style("filter", "drop-shadow(0 4px 12px rgba(0,0,0,0.15))");
+            labels.style("opacity", 1.0);
+        }
+    </script>
+</body>
+</html>
