@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Retro Microsoft 1985 - Teams Village</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5aa0 100%);
+            overflow: hidden;
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        
+        svg:active {
+            cursor: grabbing;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .node:hover {
+            filter: brightness(1.15) drop-shadow(0 0 8px rgba(255,255,255,0.4));
+        }
+        
+        .node-label {
+            font-size: 10px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            pointer-events: none;
+            fill: #FFFFFF;
+            text-shadow: 0 0 3px #000, 0 0 3px #000;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #000080;
+            color: #FFFFFF;
+            padding: 25px;
+            border: 3px solid #C0C0C0;
+            box-shadow: 5px 5px 0px #808080;
+            max-width: 320px;
+            font-family: 'Courier New', monospace;
+            z-index: 1000;
+        }
+        
+        .info-panel h2 {
+            margin: 0 0 12px 0;
+            color: #FFFF00;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .info-panel .subtitle {
+            color: #00FF00;
+            font-weight: 700;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .info-panel p {
+            margin: 5px 0;
+            font-size: 11px;
+            color: #FFFFFF;
+            line-height: 1.4;
+        }
+        
+        .tab-navigation {
+            position: absolute;
+            top: 380px;
+            left: 20px;
+            background: #000080;
+            border: 3px solid #C0C0C0;
+            box-shadow: 5px 5px 0px #808080;
+            z-index: 1000;
+        }
+        
+        .tab-btn {
+            background: #C0C0C0;
+            color: #000000;
+            border: 1px outset #C0C0C0;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            display: block;
+            margin: 2px;
+        }
+        
+        .tab-btn:hover { 
+            background: #808080; 
+            color: #FFFFFF; 
+        }
+        
+        .tab-btn.active { 
+            background: #FFFF00; 
+            border: 1px inset #C0C0C0; 
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: #C0C0C0;
+            padding: 8px;
+            border: 2px outset #C0C0C0;
+            z-index: 1000;
+        }
+        
+        .control-btn {
+            display: block;
+            width: 40px;
+            height: 32px;
+            margin: 4px 0;
+            border: 1px outset #C0C0C0;
+            background: #C0C0C0;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            color: #000000;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .control-btn:active {
+            border: 1px inset #C0C0C0;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #000080;
+            color: #FFFFFF;
+            padding: 15px;
+            border: 3px solid #C0C0C0;
+            box-shadow: 5px 5px 0px #808080;
+            font-family: 'Courier New', monospace;
+            z-index: 1000;
+        }
+        
+        .legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            color: #FFFF00;
+            font-weight: 700;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+            font-size: 10px;
+            color: #FFFFFF;
+        }
+        
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border: 1px solid #FFFFFF;
+            flex-shrink: 0;
+        }
+        
+        .filter-btn {
+            display: block;
+            background: #C0C0C0;
+            color: #000000;
+            border: 1px outset #C0C0C0;
+            padding: 4px 8px;
+            margin: 3px 0;
+            cursor: pointer;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+        }
+        
+        .filter-btn:hover {
+            background: #808080;
+            color: #FFFFFF;
+        }
+        
+        .filter-btn:active {
+            border: 1px inset #C0C0C0;
+        }
+        
+        .filter-btn.active {
+            background: #FFFF00;
+            color: #000000;
+            border: 1px inset #C0C0C0;
+        }
+        
+        .detail-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            background: #000080;
+            color: #FFFFFF;
+            padding: 20px;
+            border: 3px solid #C0C0C0;
+            box-shadow: 5px 5px 0px #808080;
+            max-width: 380px;
+            font-family: 'Courier New', monospace;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .detail-panel.active {
+            display: block;
+        }
+        
+        .detail-panel h3 {
+            margin: 0 0 12px 0;
+            color: #FFFF00;
+            font-size: 14px;
+            padding-right: 20px;
+        }
+        
+        .detail-row {
+            margin: 8px 0;
+            font-size: 11px;
+        }
+        
+        .detail-label {
+            font-weight: 700;
+            color: #00FF00;
+            font-size: 9px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        
+        .detail-value {
+            color: #FFFFFF;
+            font-size: 12px;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #C0C0C0;
+            border: 1px outset #C0C0C0;
+            width: 20px;
+            height: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #000000;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .close-btn:active {
+            border: 1px inset #C0C0C0;
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000080;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 9999;
+            color: #FFFFFF;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #808080;
+            border-top-color: #FFFF00;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 14px;
+            color: #00FF00;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Microsoft Teams Village 1985...</div>
+    </div>
+    
+    <div id="container">
+        <svg id="village"></svg>
+        
+        <div class="info-panel">
+            <h2>🖥️ Microsoft 1985</h2>
+            <div class="subtitle">Teams Village Explorer</div>
+            <p><strong><span id="team-count">16 Teams</span></strong> // <span id="mode-indicator">Normal View</span></p>
+            <p style="margin-top: 10px; border-top: 1px solid #808080; padding-top: 10px;">
+                Zoom: Mouse wheel<br>
+                Pan: Drag background<br>
+                Details: Click team
+            </p>
+        </div>
+        
+        <div class="tab-navigation">
+            <div class="tab-btn active" onclick="showMapView()">🗺️ Map View</div>
+            <div class="tab-btn" onclick="showProblemAnalysis()">⚠️ Problem Analysis</div>
+        </div>
+        
+        <div class="legend">
+            <h3 id="legend-title">Divisions</h3>
+            <div id="normal-legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF0000;"></div>
+                    <span>Core Dev (6)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #00FF00;"></div>
+                    <span>Business (4)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FFFF00;"></div>
+                    <span>Projects (3)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #00FFFF;"></div>
+                    <span>Support (3)</span>
+                </div>
+            </div>
+            
+            <div id="problem-legend" style="display: none;">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF0000;"></div>
+                    <span>Ownership Risk (4)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF6600;"></div>
+                    <span>Security Risk (3)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #800080;"></div>
+                    <span>Ghost Teams (2)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF0080;"></div>
+                    <span>Data Exposure (1)</span>
+                </div>
+            </div>
+            
+            <div id="filter-section">
+                <h3 style="margin-top: 15px; border-top: 1px solid #808080; padding-top: 10px;">Filters</h3>
+                <div class="filter-btn" onclick="applyGovernanceFilter()">⚠️ Gov Risks</div>
+                <div class="filter-btn" onclick="applySizeFilter()">📏 Large Teams</div>
+                <div class="filter-btn" onclick="applyOwnershipFilter()">👑 Bill's Teams</div>
+                <div class="filter-btn" onclick="applyGuestFilter()">🌐 External Access</div>
+                <div class="filter-btn" onclick="resetFilters()" style="color: #00FF00;">🔄 Reset</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="zoomIn()">+</button>
+            <button class="control-btn" onclick="zoomOut()">-</button>
+            <button class="control-btn" onclick="resetZoom()">⌂</button>
+        </div>
+        
+        <div class="detail-panel" id="detailPanel">
+            <button class="close-btn" onclick="closeDetails()">X</button>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+    
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <script>
+        // Retro Microsoft Colors (1985 CGA palette)
+        const colors = {
+            coredev: '#FF0000',    // Red - Core Development
+            business: '#00FF00',   // Green - Business Operations  
+            projects: '#FFFF00',   // Yellow - Special Projects
+            support: '#00FFFF'     // Cyan - Support Functions
+        };
+        
+        // Problem analysis colors
+        const problemColors = {
+            'ownership-risk': '#FF0000',  // Red - Critical ownership issues
+            'security-risk': '#FF6600',   // Orange - Security/guest issues
+            'ghost-teams': '#800080',     // Purple - Inactive teams
+            'data-exposure': '#FF0080'    // Pink - Data governance issues
+        };
+        
+        // Retro Microsoft 1985 Teams Data
+        const teams = [
+            // Core Development (Red)
+            {id: 1, name: "MS-DOS_Core", cluster: "coredev", members: 8, owner: "Bill Gates, Tim Paterson", issues: "Single platform risk", problemType: null},
+            {id: 2, name: "BASIC_Compiler", cluster: "coredev", members: 6, owner: "Paul Allen", issues: "Only 1 owner", problemType: "ownership-risk"},
+            {id: 3, name: "Windows_1.0", cluster: "coredev", members: 12, owner: "Scott McGregor", issues: "Resource hungry", problemType: null},
+            {id: 4, name: "Tools_Utilities", cluster: "coredev", members: 4, owner: "Steve Wood", issues: "Naming chaos", problemType: null},
+            {id: 5, name: "Hardware_Drivers", cluster: "coredev", members: 5, owner: "Tandy Trower", issues: "IBM guest access", problemType: "security-risk"},
+            {id: 6, name: "Kernel_Research", cluster: "coredev", members: 3, owner: "Mark Zbikowski", issues: "Ghost team (6mo)", problemType: "ghost-teams"},
+            
+            // Business Operations (Green)
+            {id: 7, name: "Finance_Payroll", cluster: "business", members: 4, owner: "Ida Cole", issues: "Sensitive data public", problemType: "data-exposure"},
+            {id: 8, name: "Sales_OEM", cluster: "business", members: 7, owner: "Steve Ballmer", issues: "External IBM guests", problemType: "security-risk"},
+            {id: 9, name: "Legal_Contracts", cluster: "business", members: 3, owner: "Bill Gates", issues: "Bill owns everything", problemType: "ownership-risk"},
+            {id: 10, name: "HR_Recruiting", cluster: "business", members: 2, owner: "Marla Wood", issues: "Understaffed", problemType: null},
+            
+            // Special Projects (Yellow)
+            {id: 11, name: "IBM_Partnership", cluster: "projects", members: 6, owner: "Kay Nishi", issues: "Too many IBM guests", problemType: "security-risk"},
+            {id: 12, name: "Multiplan_Excel", cluster: "projects", members: 8, owner: "Doug Klunder", issues: "Competing with Lotus", problemType: null},
+            {id: 13, name: "Mouse_Interface", cluster: "projects", members: 4, owner: "Steve Ballmer", issues: "Hardware dependency", problemType: null},
+            
+            // Support Functions (Cyan)
+            {id: 14, name: "QA_Testing", cluster: "support", members: 5, owner: "Chris Peters", issues: "Manual testing only", problemType: null},
+            {id: 15, name: "Documentation", cluster: "support", members: 3, owner: "Tandy Trower", issues: "Always behind dev", problemType: null},
+            {id: 16, name: "GarageFun_Social", cluster: "support", members: 8, owner: "Paul Allen", issues: "IBM guests in private channel", problemType: "ownership-risk"}
+        ].map(t => ({...t, color: colors[t.cluster]}));
+        
+        // Global variables
+        let nodes, labels, simulation, svg, g;
+        let currentMode = 'normal'; // 'normal' or 'problem-analysis'
+        
+        window.addEventListener('load', function() {
+            setTimeout(initVisualization, 800);
+        });
+        
+        function initVisualization() {
+            document.getElementById('loadingScreen').classList.add('hidden');
+            
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            svg = d3.select("#village")
+                .attr("viewBox", [0, 0, width, height]);
+            
+            g = svg.append("g");
+            
+            // Zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.5, 4])
+                .on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            // Initialize with normal view as DEFAULT
+            currentMode = 'normal';
+            createNormalView();
+        }
+        
+        function createNormalView() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            // Clear existing elements
+            g.selectAll("*").remove();
+            
+            // Force simulation for normal view
+            simulation = d3.forceSimulation(teams)
+                .force("charge", d3.forceManyBody().strength(-800))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.members * 3 + 8))  // Updated collision radius
+                .force("x", d3.forceX(d => {
+                    const clusters = {
+                        coredev: width * 0.3,     // Left side - Core Development
+                        business: width * 0.7,    // Right side - Business
+                        projects: width * 0.5,    // Center - Special Projects
+                        support: width * 0.5      // Center bottom - Support
+                    };
+                    return clusters[d.cluster];
+                }).strength(0.4))
+                .force("y", d3.forceY(d => {
+                    const clusters = {
+                        coredev: height * 0.35,   // Upper left
+                        business: height * 0.35,  // Upper right
+                        projects: height * 0.65,  // Lower center
+                        support: height * 0.8     // Bottom
+                    };
+                    return clusters[d.cluster];
+                }).strength(0.4));
+            
+            // Draw nodes
+            nodes = g.selectAll("circle")
+                .data(teams)
+                .join("circle")
+                .attr("class", "node")
+                .attr("r", d => d.members * 3 + 5)  // Linear scaling for better size distinction
+                .attr("fill", d => d.color)
+                .attr("stroke", "#FFFFFF")
+                .attr("stroke-width", 2)
+                .on("click", showDetails)
+                .call(d3.drag()
+                    .on("start", dragStarted)
+                    .on("drag", dragged)
+                    .on("end", dragEnded));
+            
+            // Labels
+            labels = g.selectAll("text")
+                .data(teams)
+                .join("text")
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", d => d.members * 3 + 18)  // Adjust label position based on new bubble size
+                .text(d => d.name);
+            
+            // Update positions
+            simulation.on("tick", () => {
+                nodes
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+                
+                labels
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+        }
+        
+        function createProblemAnalysisView() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            // Filter to only problem teams
+            const problemTeams = teams.filter(d => d.problemType !== null);
+            
+            // Clear existing elements
+            g.selectAll("*").remove();
+            
+            // Map problem types to cluster positions
+            const problemClusters = {
+                'ownership-risk': {x: width * 0.25, y: height * 0.3},
+                'security-risk': {x: width * 0.75, y: height * 0.3},
+                'ghost-teams': {x: width * 0.25, y: height * 0.7},
+                'data-exposure': {x: width * 0.75, y: height * 0.7}
+            };
+            
+            // Force simulation for problem analysis
+            simulation = d3.forceSimulation(problemTeams)
+                .force("charge", d3.forceManyBody().strength(-600))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.members * 3 + 8))  // Updated collision radius
+                .force("x", d3.forceX(d => problemClusters[d.problemType].x).strength(0.5))
+                .force("y", d3.forceY(d => problemClusters[d.problemType].y).strength(0.5));
+            
+            // Draw problem nodes
+            nodes = g.selectAll("circle")
+                .data(problemTeams)
+                .join("circle")
+                .attr("class", "node")
+                .attr("r", d => d.members * 3 + 5)  // Linear scaling for better size distinction
+                .attr("fill", d => problemColors[d.problemType])
+                .attr("stroke", "#FFFFFF")
+                .attr("stroke-width", 2)
+                .on("click", showProblemDetails)
+                .call(d3.drag()
+                    .on("start", dragStarted)
+                    .on("drag", dragged)
+                    .on("end", dragEnded));
+            
+            // Problem labels (general, not specific team names)
+            labels = g.selectAll("text")
+                .data(problemTeams)
+                .join("text")
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", d => d.members * 3 + 18)  // Adjust label position based on new bubble size
+                .text(d => {
+                    switch(d.problemType) {
+                        case 'ownership-risk': return 'Ownership Gap';
+                        case 'security-risk': return 'Guest Security Risk';
+                        case 'ghost-teams': return 'Ghost Team';
+                        case 'data-exposure': return 'Data Exposure';
+                        default: return 'Risk';
+                    }
+                });
+            
+            // Update positions
+            simulation.on("tick", () => {
+                nodes
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+                
+                labels
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+        }
+        
+        function showMapView() {
+            currentMode = 'normal';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update UI
+            document.getElementById('team-count').textContent = '16 Teams';
+            document.getElementById('mode-indicator').textContent = 'Normal View';
+            document.getElementById('legend-title').textContent = 'Divisions';
+            document.getElementById('normal-legend').style.display = 'block';
+            document.getElementById('problem-legend').style.display = 'none';
+            document.getElementById('filter-section').style.display = 'block';
+            
+            createNormalView();
+        }
+        
+        function showProblemAnalysis() {
+            currentMode = 'problem-analysis';
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update UI
+            const problemCount = teams.filter(d => d.problemType !== null).length;
+            document.getElementById('team-count').textContent = `${problemCount} Risk Teams`;
+            document.getElementById('mode-indicator').textContent = 'Problem Analysis';
+            document.getElementById('legend-title').textContent = 'Risk Categories';
+            document.getElementById('normal-legend').style.display = 'none';
+            document.getElementById('problem-legend').style.display = 'block';
+            document.getElementById('filter-section').style.display = 'none';
+            
+            createProblemAnalysisView();
+        }
+        
+        function showDetails(event, d) {
+            const panel = document.getElementById("detailPanel");
+            const content = document.getElementById("detailContent");
+            
+            const clusterNames = {
+                coredev: 'Core Development',
+                business: 'Business Operations',
+                projects: 'Special Projects',
+                support: 'Support Functions'
+            };
+            
+            content.innerHTML = `
+                <h3>${d.name}</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Team Size</div>
+                    <div class="detail-value">${d.members} people</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Owner(s)</div>
+                    <div class="detail-value">${d.owner}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Division</div>
+                    <div class="detail-value" style="color: ${d.color};">${clusterNames[d.cluster]}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Governance Issue</div>
+                    <div class="detail-value" style="color: #FFFF00;">${d.issues}</div>
+                </div>
+            `;
+            
+            panel.classList.add("active");
+        }
+        
+        function showProblemDetails(event, d) {
+            const panel = document.getElementById("detailPanel");
+            const content = document.getElementById("detailContent");
+            
+            const riskDescriptions = {
+                'ownership-risk': 'Single owner or ownership concentration risk',
+                'security-risk': 'External guest access in sensitive areas',
+                'ghost-teams': 'No activity but files stored (6+ months)',
+                'data-exposure': 'Sensitive data in public channels'
+            };
+            
+            content.innerHTML = `
+                <h3>Risk Analysis</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Affected Team</div>
+                    <div class="detail-value">${d.name}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Risk Category</div>
+                    <div class="detail-value" style="color: ${problemColors[d.problemType]};">${d.problemType.replace('-', ' ').toUpperCase()}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Description</div>
+                    <div class="detail-value">${riskDescriptions[d.problemType]}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Specific Issue</div>
+                    <div class="detail-value" style="color: #FFFF00;">${d.issues}</div>
+                </div>
+            `;
+            
+            panel.classList.add("active");
+        }
+        
+        // Drag functions
+        function dragStarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragEnded(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        // Zoom controls
+        function zoomIn() {
+            svg.transition().call(d3.zoom().scaleBy, 1.5);
+        }
+        
+        function zoomOut() {
+            svg.transition().call(d3.zoom().scaleBy, 0.67);
+        }
+        
+        function resetZoom() {
+            svg.transition().call(d3.zoom().transform, d3.zoomIdentity);
+        }
+        
+        function closeDetails() {
+            document.getElementById("detailPanel").classList.remove("active");
+        }
+        
+        // Filter Functions (only work in normal mode)
+        function applyGovernanceFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.issues.includes('owner') || d.issues.includes('public') || d.issues.includes('Ghost'));
+        }
+        
+        function applySizeFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.members >= 8);
+        }
+        
+        function applyOwnershipFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.owner.includes('Bill Gates'));
+        }
+        
+        function applyGuestFilter() {
+            if (currentMode !== 'normal') return;
+            highlightTeams(d => d.issues.includes('IBM guests') || d.issues.includes('guests'));
+        }
+        
+        function highlightTeams(filterCondition) {
+            nodes.style("opacity", d => filterCondition(d) ? 1.0 : 0.2)
+                 .style("filter", d => filterCondition(d) ? "drop-shadow(0 0 6px #FFFF00)" : "none");
+            
+            labels.style("opacity", d => filterCondition(d) ? 1.0 : 0.3);
+        }
+        
+        function resetFilters() {
+            if (currentMode !== 'normal') return;
+            nodes.style("opacity", 1.0).style("filter", "none");
+            labels.style("opacity", 1.0);
+        }
+    </script>
+</body>
+</html>
