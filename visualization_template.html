@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Org Intelligence Visualization Template</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+    #app { width: 100vw; height: 100vh; position: relative; }
+    svg { width: 100%; height: 100%; }
+    .panel { position: absolute; background: rgba(15, 23, 42, 0.86); border: 1px solid #334155; border-radius: 12px; padding: 14px; backdrop-filter: blur(6px); }
+    .top-left { top: 16px; left: 16px; width: 320px; }
+    .top-right { top: 16px; right: 16px; width: 300px; }
+    .bottom-right { bottom: 16px; right: 16px; width: 190px; }
+    .title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #93c5fd; font-size: 12px; margin-bottom: 8px; }
+    .meta { font-size: 12px; color: #cbd5e1; margin-bottom: 4px; }
+    .mode-btn, .filter-btn, .control-btn {
+      border: 1px solid #475569; background: #1e293b; color: #e2e8f0; padding: 7px 9px;
+      border-radius: 8px; cursor: pointer; font-size: 12px; margin: 4px 0;
+    }
+    .mode-btn.active, .filter-btn.active { background: #0369a1; border-color: #38bdf8; }
+    .filter-btn { display: block; width: 100%; text-align: left; }
+    .search { width: 100%; padding: 8px; margin-top: 8px; border-radius: 8px; border: 1px solid #475569; background: #020617; color: #e2e8f0; }
+    .legend-item { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-top: 8px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .node-label { font-size: 10px; text-anchor: middle; fill: #f8fafc; pointer-events: none; }
+    .status { margin-top: 8px; font-size: 11px; color: #93c5fd; }
+    .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <svg id="viz"></svg>
+
+    <div class="panel top-left">
+      <div class="title" id="title"></div>
+      <div class="subtitle" id="subtitle"></div>
+      <div class="meta"><span id="entityCount"></span> · <span id="modeName"></span></div>
+      <div id="modeButtons"></div>
+    </div>
+
+    <div class="panel top-right">
+      <div style="font-weight:700; margin-bottom:8px;">Filters</div>
+      <div id="filterButtons"></div>
+      <input id="searchBox" class="search" type="text" placeholder="Search by name or owner..." />
+      <div class="status" id="statusText"></div>
+      <div style="font-weight:700; margin:10px 0 6px;">Legend</div>
+      <div id="legend"></div>
+    </div>
+
+    <div class="panel bottom-right">
+      <div style="font-weight:700; margin-bottom:8px;">Zoom</div>
+      <div class="controls-grid">
+        <button class="control-btn" id="zoomIn">+</button>
+        <button class="control-btn" id="zoomOut">-</button>
+        <button class="control-btn" id="zoomReset">⌂</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    // Template contract: replace ONLY this object for different use cases.
+    const TEMPLATE = {
+      appTitle: 'Org Intelligence Map',
+      subtitle: 'Reusable template: governance, collaboration, growth, cost',
+      entityName: 'teams',
+      dimensions: {
+        group: {
+          label: 'Division',
+          colors: {
+            engineering: '#ef4444',
+            business: '#22c55e',
+            projects: '#f59e0b',
+            support: '#38bdf8'
+          }
+        },
+        risk: {
+          label: 'Risk Category',
+          colors: {
+            ownership: '#ef4444',
+            security: '#f97316',
+            inactivity: '#a855f7',
+            data: '#ec4899'
+          }
+        }
+      },
+      modes: [
+        { id: 'landscape', label: 'Landscape', clusterBy: 'group' },
+        { id: 'risk', label: 'Risk Focus', clusterBy: 'risk', include: d => !!d.risk }
+      ],
+      filters: [
+        { id: 'large', label: 'Large Teams', fn: d => d.members >= 8 },
+        { id: 'owner-concentration', label: 'Owner Concentration', fn: d => d.owner.includes('Bill Gates') },
+        { id: 'external', label: 'External Access', fn: d => d.flags.some(f => f.includes('guest')) }
+      ],
+      data: [
+        { name: 'MS-DOS_Core', owner: 'Bill Gates, Tim Paterson', members: 8, group: 'engineering', risk: null, flags: [] },
+        { name: 'BASIC_Compiler', owner: 'Paul Allen', members: 6, group: 'engineering', risk: 'ownership', flags: ['single owner'] },
+        { name: 'Finance_Payroll', owner: 'Ida Cole', members: 4, group: 'business', risk: 'data', flags: ['public files'] },
+        { name: 'Sales_OEM', owner: 'Steve Ballmer', members: 7, group: 'business', risk: 'security', flags: ['guest access'] },
+        { name: 'IBM_Partnership', owner: 'Kay Nishi', members: 6, group: 'projects', risk: 'security', flags: ['guest access'] },
+        { name: 'QA_Testing', owner: 'Chris Peters', members: 5, group: 'support', risk: null, flags: [] },
+        { name: 'GarageFun_Social', owner: 'Paul Allen', members: 8, group: 'support', risk: 'inactivity', flags: ['ghost team', 'guest access'] }
+      ]
+    };
+
+    const state = {
+      mode: TEMPLATE.modes[0].id,
+      activeFilter: null,
+      search: ''
+    };
+
+    const svg = d3.select('#viz');
+    const g = svg.append('g');
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    svg.attr('viewBox', [0, 0, width, height]);
+
+    const zoom = d3.zoom().scaleExtent([0.5, 4]).on('zoom', (event) => g.attr('transform', event.transform));
+    svg.call(zoom);
+
+    document.getElementById('zoomIn').onclick = () => svg.transition().call(zoom.scaleBy, 1.4);
+    document.getElementById('zoomOut').onclick = () => svg.transition().call(zoom.scaleBy, 0.7);
+    document.getElementById('zoomReset').onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity);
+
+    function currentMode() {
+      return TEMPLATE.modes.find(m => m.id === state.mode);
+    }
+
+    function getBaseData() {
+      const mode = currentMode();
+      return mode.include ? TEMPLATE.data.filter(mode.include) : TEMPLATE.data;
+    }
+
+    function getFilteredData() {
+      const filterFn = state.activeFilter ? TEMPLATE.filters.find(f => f.id === state.activeFilter).fn : () => true;
+      const s = state.search.toLowerCase();
+      return getBaseData().filter(d => filterFn(d) && (!s || d.name.toLowerCase().includes(s) || d.owner.toLowerCase().includes(s)));
+    }
+
+    function clusterTarget(clusterBy, key) {
+      const keys = Object.keys(TEMPLATE.dimensions[clusterBy].colors);
+      const idx = Math.max(0, keys.indexOf(key));
+      const cols = 2;
+      const row = Math.floor(idx / cols);
+      const col = idx % cols;
+      return { x: width * (0.3 + col * 0.4), y: height * (0.3 + row * 0.35) };
+    }
+
+    function renderLegend() {
+      const clusterBy = currentMode().clusterBy;
+      const colors = TEMPLATE.dimensions[clusterBy].colors;
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      Object.entries(colors).forEach(([k, color]) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `<span class="legend-dot" style="background:${color}"></span><span>${k}</span>`;
+        legend.appendChild(item);
+      });
+    }
+
+    function renderControls() {
+      document.getElementById('title').textContent = TEMPLATE.appTitle;
+      document.getElementById('subtitle').textContent = TEMPLATE.subtitle;
+
+      const modeButtons = document.getElementById('modeButtons');
+      modeButtons.innerHTML = TEMPLATE.modes.map(m =>
+        `<button class="mode-btn ${m.id === state.mode ? 'active' : ''}" data-mode="${m.id}">${m.label}</button>`
+      ).join('');
+      modeButtons.querySelectorAll('button').forEach(b => b.onclick = () => { state.mode = b.dataset.mode; draw(); });
+
+      const filterButtons = document.getElementById('filterButtons');
+      filterButtons.innerHTML = TEMPLATE.filters.map(f =>
+        `<button class="filter-btn ${f.id === state.activeFilter ? 'active' : ''}" data-filter="${f.id}">${f.label}</button>`
+      ).join('') + `<button class="filter-btn" id="clearFilters">Clear Filters</button>`;
+      filterButtons.querySelectorAll('[data-filter]').forEach(b => b.onclick = () => { state.activeFilter = b.dataset.filter; draw(); });
+      document.getElementById('clearFilters').onclick = () => { state.activeFilter = null; state.search = ''; document.getElementById('searchBox').value = ''; draw(); };
+
+      document.getElementById('searchBox').oninput = (e) => { state.search = e.target.value; draw(); };
+    }
+
+    function draw() {
+      renderControls();
+      renderLegend();
+
+      const mode = currentMode();
+      const data = getFilteredData();
+      const allInMode = getBaseData().length;
+      const clusterBy = mode.clusterBy;
+      const colors = TEMPLATE.dimensions[clusterBy].colors;
+
+      document.getElementById('entityCount').textContent = `${data.length} ${TEMPLATE.entityName}`;
+      document.getElementById('modeName').textContent = mode.label;
+      document.getElementById('statusText').textContent = `Showing ${data.length} of ${allInMode} ${TEMPLATE.entityName}`;
+
+      g.selectAll('*').remove();
+
+      const sim = d3.forceSimulation(data)
+        .force('charge', d3.forceManyBody().strength(-500))
+        .force('collision', d3.forceCollide().radius(d => d.members * 3 + 10))
+        .force('x', d3.forceX(d => clusterTarget(clusterBy, d[clusterBy]).x).strength(0.5))
+        .force('y', d3.forceY(d => clusterTarget(clusterBy, d[clusterBy]).y).strength(0.5));
+
+      const nodes = g.selectAll('circle').data(data).join('circle')
+        .attr('r', d => d.members * 3 + 6)
+        .attr('fill', d => colors[d[clusterBy]] || '#64748b')
+        .attr('stroke', '#f8fafc')
+        .attr('stroke-width', 1.5)
+        .style('cursor', 'pointer')
+        .append('title')
+        .text(d => `${d.name}\nOwner: ${d.owner}\nMembers: ${d.members}\nRisk: ${d.risk || 'none'}`);
+
+      const labels = g.selectAll('text').data(data).join('text')
+        .attr('class', 'node-label')
+        .attr('dy', d => d.members * 3 + 18)
+        .text(d => d.name);
+
+      sim.on('tick', () => {
+        g.selectAll('circle').attr('cx', d => d.x).attr('cy', d => d.y);
+        labels.attr('x', d => d.x).attr('y', d => d.y);
+      });
+    }
+
+    draw();
+  </script>
+</body>
+</html>

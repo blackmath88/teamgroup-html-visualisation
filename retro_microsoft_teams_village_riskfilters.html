@@ -208,6 +208,40 @@
             color: #000000;
             border: 1px inset #C0C0C0;
         }
+
+        .search-panel {
+            margin-top: 12px;
+            border-top: 1px solid #808080;
+            padding-top: 10px;
+        }
+
+        .search-panel h3 {
+            margin-bottom: 8px;
+        }
+
+        .search-box {
+            width: 100%;
+            background: #000000;
+            color: #00FF00;
+            border: 1px solid #C0C0C0;
+            padding: 5px 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            margin-bottom: 6px;
+        }
+
+        .search-box::placeholder {
+            color: #A8A8A8;
+        }
+
+        .status-badge {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #00FF00;
+            border-top: 1px dashed #808080;
+            padding-top: 8px;
+            line-height: 1.3;
+        }
         
         .detail-panel {
             position: absolute;
@@ -334,8 +368,8 @@
         </div>
         
         <div class="tab-navigation">
-            <div class="tab-btn active" onclick="showMapView()">🗺️ Map View</div>
-            <div class="tab-btn" onclick="showProblemAnalysis()">⚠️ Problem Analysis</div>
+            <div class="tab-btn active" onclick="showMapView(event)">🗺️ Map View</div>
+            <div class="tab-btn" onclick="showProblemAnalysis(event)">⚠️ Problem Analysis</div>
         </div>
         
         <div class="legend">
@@ -385,6 +419,13 @@
                 <div class="filter-btn" onclick="applyOwnershipFilter()">👑 Bill's Teams</div>
                 <div class="filter-btn" onclick="applyGuestFilter()">🌐 External Access</div>
                 <div class="filter-btn" onclick="resetFilters()" style="color: #00FF00;">🔄 Reset</div>
+            </div>
+
+            <div class="search-panel" id="search-panel">
+                <h3>Search</h3>
+                <input class="search-box" id="teamSearch" type="text" placeholder="Find team / owner..." oninput="applySearchFilter()">
+                <div class="filter-btn" onclick="clearSearch()">❎ Clear Search</div>
+                <div class="status-badge" id="statusBadge">Showing all 16 teams</div>
             </div>
         </div>
         
@@ -449,6 +490,7 @@
         // Global variables
         let nodes, labels, simulation, svg, g;
         let currentMode = 'normal'; // 'normal' or 'problem-analysis'
+        let currentFilter = null;
         
         window.addEventListener('load', function() {
             setTimeout(initVisualization, 800);
@@ -616,7 +658,7 @@
             });
         }
         
-        function showMapView() {
+        function showMapView(event) {
             currentMode = 'normal';
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
@@ -628,11 +670,13 @@
             document.getElementById('normal-legend').style.display = 'block';
             document.getElementById('problem-legend').style.display = 'none';
             document.getElementById('filter-section').style.display = 'block';
+            document.getElementById('search-panel').style.display = 'block';
             
             createNormalView();
+            refreshVisualState();
         }
         
-        function showProblemAnalysis() {
+        function showProblemAnalysis(event) {
             currentMode = 'problem-analysis';
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
@@ -645,8 +689,10 @@
             document.getElementById('normal-legend').style.display = 'none';
             document.getElementById('problem-legend').style.display = 'block';
             document.getElementById('filter-section').style.display = 'none';
+            document.getElementById('search-panel').style.display = 'none';
             
             createProblemAnalysisView();
+            setStatus('Problem analysis mode active');
         }
         
         function showDetails(event, d) {
@@ -755,36 +801,93 @@
         // Filter Functions (only work in normal mode)
         function applyGovernanceFilter() {
             if (currentMode !== 'normal') return;
-            highlightTeams(d => d.issues.includes('owner') || d.issues.includes('public') || d.issues.includes('Ghost'));
+            currentFilter = d => d.issues.includes('owner') || d.issues.includes('public') || d.issues.includes('Ghost');
+            setActiveFilterButton(0);
+            refreshVisualState();
         }
         
         function applySizeFilter() {
             if (currentMode !== 'normal') return;
-            highlightTeams(d => d.members >= 8);
+            currentFilter = d => d.members >= 8;
+            setActiveFilterButton(1);
+            refreshVisualState();
         }
         
         function applyOwnershipFilter() {
             if (currentMode !== 'normal') return;
-            highlightTeams(d => d.owner.includes('Bill Gates'));
+            currentFilter = d => d.owner.includes('Bill Gates');
+            setActiveFilterButton(2);
+            refreshVisualState();
         }
         
         function applyGuestFilter() {
             if (currentMode !== 'normal') return;
-            highlightTeams(d => d.issues.includes('IBM guests') || d.issues.includes('guests'));
+            currentFilter = d => d.issues.includes('IBM guests') || d.issues.includes('guests');
+            setActiveFilterButton(3);
+            refreshVisualState();
         }
         
         function highlightTeams(filterCondition) {
-            nodes.style("opacity", d => filterCondition(d) ? 1.0 : 0.2)
+            nodes.style("opacity", d => filterCondition(d) ? 1.0 : 0.15)
                  .style("filter", d => filterCondition(d) ? "drop-shadow(0 0 6px #FFFF00)" : "none");
             
             labels.style("opacity", d => filterCondition(d) ? 1.0 : 0.3);
+
+            const visibleCount = teams.filter(filterCondition).length;
+            setStatus(`Showing ${visibleCount} / ${teams.length} teams`);
         }
         
         function resetFilters() {
             if (currentMode !== 'normal') return;
+            currentFilter = null;
+            clearSearch(false);
             nodes.style("opacity", 1.0).style("filter", "none");
             labels.style("opacity", 1.0);
+            setActiveFilterButton();
+            setStatus(`Showing all ${teams.length} teams`);
         }
+
+        function applySearchFilter() {
+            if (currentMode !== 'normal') return;
+            refreshVisualState();
+        }
+
+        function clearSearch(shouldRefresh = true) {
+            const searchInput = document.getElementById('teamSearch');
+            searchInput.value = '';
+            if (shouldRefresh) refreshVisualState();
+        }
+
+        function refreshVisualState() {
+            const searchTerm = document.getElementById('teamSearch').value.trim().toLowerCase();
+            const searchCondition = searchTerm
+                ? (d => d.name.toLowerCase().includes(searchTerm) || d.owner.toLowerCase().includes(searchTerm))
+                : (() => true);
+            const combinedCondition = currentFilter
+                ? (d => currentFilter(d) && searchCondition(d))
+                : searchCondition;
+            highlightTeams(combinedCondition);
+        }
+
+        function setActiveFilterButton(activeIndex = -1) {
+            document.querySelectorAll('#filter-section .filter-btn').forEach((button, index) => {
+                button.classList.toggle('active', index === activeIndex);
+            });
+        }
+
+        function setStatus(text) {
+            document.getElementById('statusBadge').textContent = text;
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === '/' && currentMode === 'normal') {
+                event.preventDefault();
+                document.getElementById('teamSearch').focus();
+            }
+            if (event.key === 'Escape' && currentMode === 'normal') {
+                resetFilters();
+            }
+        });
     </script>
 </body>
 </html>
